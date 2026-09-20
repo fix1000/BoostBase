@@ -1,7 +1,7 @@
 import datetime
 
 class Song:
-    def __init__(self, id, title, artist, duration_seconds, medley, release_year, medley_titles=None, party_score=None, difficulty=None, genre=None, tags=None, lead_vocals=None, is_core_repertoire=None, original_key=None, transpose_to=None, notes=None):
+    def __init__(self, id, title, artist, duration_seconds, medley, release_year, medley_titles=None, party_score=None, difficulty=None, genre=None, tags=None, lead_vocals=None, is_core_repertoire=None, original_key=None, transpose_to=None, notes=None, created_at=None, updated_at=None):
         if type(id) is not int:
             raise TypeError("Id wordt niet opgehoogd met een nummer")
         elif id >0:
@@ -150,9 +150,13 @@ class Song:
         else:
             self.transpose_to = transpose_to
 
-        self.created_at = datetime.datetime.now()
-        self.updated_at = None
+        if created_at is None:
+            self.created_at = datetime.datetime.now()
+        else:
+            self.created_at = created_at
+        
 
+        self.updated_at = updated_at
         self.notes = notes
 
 

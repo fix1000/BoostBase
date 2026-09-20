@@ -357,3 +357,21 @@ def test_updated_at_isNone():
 def test_notes():
     song = Song(1, "ABC", "Michael Jackson", 210, False, 1976, notes="Check ending")
     assert song.notes == "Check ending"
+
+def test_song_can_restore_timestamps():
+    created_at = datetime.datetime(2026, 9, 20, 15, 30, 0)
+    updated_at = datetime.datetime(2026, 9, 20, 16, 45, 0)
+
+    song = Song(
+        id=1,
+        title="Beat It",
+        artist="Michael Jackson",
+        duration_seconds=258,
+        medley=False,
+        release_year=1982,
+        created_at=created_at,
+        updated_at=updated_at
+    )
+
+    assert song.created_at == created_at
+    assert song.updated_at == updated_at
