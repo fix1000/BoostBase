@@ -3,10 +3,13 @@ import datetime
 
 class SongService:
 
-    def __init__(self): 
-        #stukje info over oplopende ID, die ergens moet beginnen. Dit is tijdelijk code als we een archief hebben wordt de ID daaruit opgeroepen.
-        self._next_id=1
-        self._songs=[]
+    def __init__(self, repository): 
+        self.repository=repository
+        self._songs = self.repository.load_songs()
+        if self._songs:
+            self._next_id=max(song.id for song in self._songs) +1
+        else:
+            self._next_id=1
     
     def add_song(self, title, artist, duration_seconds, medley, release_year):
         for s in self._songs:
@@ -21,8 +24,9 @@ class SongService:
             release_year
         )
 
-        self._next_id +=1
-        self._songs.append(song)
+        self._next_id +=1 
+        self._songs.append(song) #opslaan in werkgeheugen
+        self.repository.save_song(song) #opslaan naar json of... 
         return song
 
     def get_song(self, id):
@@ -37,7 +41,8 @@ class SongService:
     def delete_song(self, id):
         for s in self._songs:
             if id == s.id:
-                self._songs.remove(s)
+                self._songs.remove(s) #opslaan in werkgeheugen
+                self.repository.delete_song(s) #opslaan ook naar Json (repo)
                 return
         raise ValueError(f"Song with ID {id} not found")
 
@@ -89,6 +94,7 @@ class SongService:
                     s.transpose_to = transpose_to
                 if notes is not None:
                     s.notes = notes
-                s.updated_at=datetime.datetime.now()
+                s.updated_at=datetime.datetime.now() 
+                self.repository.update_song(s) #doorvoeren naar de Repo!
                 return
         raise ValueError(f"Song with ID {id} not found")
