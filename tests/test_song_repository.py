@@ -220,3 +220,32 @@ def test_save_and_load_updated_at_none(tmp_path):
     songs = repository.load_songs()
 
     assert songs[0].updated_at is None
+
+def test_load_songs_when_file_does_not_exist(tmp_path):
+    repository = SongRepository(tmp_path / "songs.json")
+
+    songs = repository.load_songs()
+
+    assert songs == []
+
+def test_update_song(tmp_path):
+    repository = SongRepository(tmp_path / "songs.json")
+
+    song = Song(
+        id=1,
+        title="Beat It",
+        artist="Michael Jackson",
+        duration_seconds=258,
+        medley=False,
+        release_year=1982
+    )
+
+    repository.save_song(song)
+
+    song.party_score = 9
+    repository.update_song(song)
+
+    songs = repository.load_songs()
+
+    assert len(songs) == 1
+    assert songs[0].party_score == 9

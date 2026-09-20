@@ -7,8 +7,8 @@ class SongRepository:
     def __init__(self, file_path):
         self.file_path = file_path
 
-    def save_song(self, song):
-        song_data = {
+    def _song_to_dict(self, song):
+        return {
             "id": song.id,
             "title": song.title,
             "artist": song.artist,
@@ -28,6 +28,9 @@ class SongRepository:
             "updated_at": song.updated_at.isoformat() if song.updated_at else None,
             "notes": song.notes
         }
+
+    def save_song(self, song):
+        song_data = self._song_to_dict(song)
         if os.path.exists(self.file_path):
             with open(self.file_path, "r") as file:
                 songs = json.load(file)
@@ -38,6 +41,8 @@ class SongRepository:
             json.dump(songs, file, indent=4)
     
     def load_songs(self):
+        if not os.path.exists(self.file_path):
+            return []
         with open(self.file_path, "r") as file:
             songs_data = json.load(file)
             songs=[]
@@ -71,3 +76,28 @@ class SongRepository:
 
                 songs.append(song)
         return songs
+    
+    def update_song(self,song):
+        songs = self.load_songs()
+        for index, s in enumerate(songs):
+            if s.id == song.id:
+                songs[index] = self._song_to_dict(song)
+                with open(self.file_path, "w") as file:
+                    json.dump(songs, file, indent=4)
+                
+                return
+        
+        raise ValueError("ID not found in database")
+
+    def delete_song(self, song):
+        songs = self.load_songs()
+        for index, s in enumerate(songs):
+            if s.id == song.id:
+                songs.pop(index)
+                songs_data = [self._song_to_dict(s) for s in songs] #zorgen dat je van een lijst naar dict gaat, om json weg te schrijven.
+                with open(self.file_path, "w") as file:
+                    json.dump(songs_data, file, indent=4)
+                
+                return
+        
+        raise ValueError("ID not found in database")
