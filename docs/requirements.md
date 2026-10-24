@@ -32,7 +32,14 @@ BoostBase helps bands managing their repertoire (songs)
     As a band member, I want to search for titels in the data, so I can manually look for numbers to be played or adjusted.
 - Search for tags
     As a band member, I want to search for tags in the data, so I can manually look for numbers to be played or adjusted.
-
+- **Search for tags (ANY)**
+    As a band member, I want to search for songs matching any of the specified tags, so I can find songs that match at least one of my selected criteria.
+- **Search for tags (ALL)**
+    As a band member, I want to search for songs matching all of the specified tags, so I can find songs that meet every selected criterion.
+- Search for partyscore:
+    As a band member, I want to search for party score in the data, including the minimal party score of a song.
+- Search by playable key
+    As a band member, I want to search for songs by the key in which we perform them, so I can find songs that fit the key required for a performance.
 ---
 
 ## Version 0.3
