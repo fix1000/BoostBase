@@ -1,5 +1,6 @@
 from models.song import Song
 import datetime
+import inspect
 
 class SongService:
 
@@ -11,17 +12,19 @@ class SongService:
         else:
             self._next_id=1
     
-    def add_song(self, title, artist, duration_seconds, medley, release_year):
+    def add_song(self, title, artist, duration_seconds, medley, release_year, **criteria):
         for s in self._songs:
             if s.title.upper() == title.upper():
                 raise ValueError(f"Title already registered in ID {s.id}")
+
         song = Song(
             self._next_id,
             title, 
             artist, 
             duration_seconds, 
             medley, 
-            release_year
+            release_year,
+            **criteria
         )
 
         self._next_id +=1 
@@ -98,3 +101,130 @@ class SongService:
                 self.repository.update_song(s) #doorvoeren naar de Repo!
                 return
         raise ValueError(f"Song with ID {id} not found")
+
+    def search_songs(self, **criteria):
+        # Ignore criteria that were explicitly set to None.
+        criteria = {
+            field: value
+            for field, value in criteria.items()
+            if value is not None
+        }
+
+        # Validate the remaining criteria.
+        for field, value in criteria.items():
+            if isinstance(value, str) and value.strip() == "":
+                raise ValueError("Voer een zoekterm in")
+
+            if isinstance(value, list) and len(value) == 0:
+                raise ValueError("Voer een zoekterm in")
+
+        # Extract special search criteria.
+        tags_any = criteria.pop("tags_any", None)
+        tags_all = criteria.pop("tags_all", None)
+        party_score_min = criteria.pop("party_score_min", None)
+        playable_key = criteria.pop("playable_key", None)
+
+        # At least one useful search criterion is required.
+        if not criteria and all(
+            value is None
+            for value in [tags_any, tags_all, party_score_min, playable_key]
+        ):
+            raise ValueError("Voer een zoekterm in")
+
+        # Validate field names against the Song model.
+        valid_fields = set(inspect.signature(Song.__init__).parameters)
+        valid_fields.discard("self")
+
+        for field in criteria:
+            if field not in valid_fields:
+                raise ValueError(f"Onbekend zoekcriterium: {field}")
+
+        resultsearch = []
+
+        for song in self._songs:
+            matches = True
+
+            # Match songs containing at least one of the requested tags.
+            if tags_any is not None:
+                any_found = False
+
+                for tag in tags_any:
+                    if tag.upper() in [t.upper() for t in song.tags]:
+                        any_found = True
+                        break
+
+                if not any_found:
+                    continue
+
+            # Match songs containing all requested tags.
+            if tags_all is not None:
+                all_found = True
+
+                for tag in tags_all:
+                    if tag.upper() not in [t.upper() for t in song.tags]:
+                        all_found = False
+                        break
+
+                if not all_found:
+                    continue
+
+            # Match songs with at least the requested party score.
+            if party_score_min is not None:
+                if (
+                    song.party_score is None
+                    or song.party_score < party_score_min
+                ):
+                    continue
+
+            # Match the key in which the song can be performed.
+            if playable_key is not None:
+                effective_key = song.transpose_to
+
+                if effective_key is None:
+                    effective_key = song.original_key
+
+                if (
+                    effective_key is None
+                    or effective_key.upper() != playable_key.upper()
+                ):
+                    continue
+
+            # Match all remaining criteria.
+            for field, value in criteria.items():
+                song_value = getattr(song, field)
+
+                if song_value is None:
+                    matches = False
+                    break
+
+                elif isinstance(song_value, list):
+                    found = False
+
+                    for item in song_value:
+                        if field == "medley_titles":
+                            if value.upper() in item.upper():
+                                found = True
+                                break
+                        else:
+                            if value.upper() == item.upper():
+                                found = True
+                                break
+
+                    if not found:
+                        matches = False
+                        break
+
+                elif isinstance(value, str):
+                    if value.upper() not in song_value.upper():
+                        matches = False
+                        break
+
+                else:
+                    if value != song_value:
+                        matches = False
+                        break
+
+            if matches:
+                resultsearch.append(song)
+
+        return resultsearch
