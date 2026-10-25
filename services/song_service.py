@@ -79,12 +79,18 @@ class SongService:
 
             self.repository.delete_song(song)
 
-        except Exception:
+        except Exception as original_error:
             for setlist in affected_setlists:
                 setlist.song_ids = original_song_ids[setlist.id]
 
-            for setlist in affected_setlists:
-                self.setlist_service.repository.save_setlist(setlist)
+            try:
+                for setlist in affected_setlists:
+                    self.setlist_service.repository.save_setlist(setlist)
+            except Exception as rollback_error:
+                original_error.add_note(
+                    "Setlist rollback also failed: "
+                    f"{rollback_error}"
+                )
 
             raise
 
