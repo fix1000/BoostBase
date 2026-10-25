@@ -75,3 +75,12 @@ class SetlistRepository:
         self._save_data(data)
 
         return next_id
+
+    def delete_setlist(self, setlist_id):
+        data = self._load_data()
+        for index, item in enumerate(data["setlists"]):
+            if item["id"] ==setlist_id:
+                data["setlists"].pop(index)
+                self._save_data(data)
+                return
+        raise ValueError("Setlist ID not found.")

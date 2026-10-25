@@ -78,6 +78,13 @@ As a band member, I want to add existing songs to a setlist, so I can prepare th
 - Each addition creates a separate occurrence at the end of the setlist.
 - Adding a song preserves the existing order.
 - The change is saved persistently.
+**Waarschuwing bij dubbele songs**
+- Wanneer een gebruiker een song toevoegt die al in dezelfde setlist voorkomt, toont de applicatie een waarschuwing dat de song al eerder is toegevoegd.
+- De gebruiker kan kiezen om de song alsnog toe te voegen of de actie te annuleren.
+- Bij annuleren blijft de setlist ongewijzigd.
+- Bij bevestiging wordt de song opnieuw toegevoegd aan de setlist.
+- Het meerdere keren voorkomen van dezelfde song in een setlist is toegestaan.
+- De waarschuwing geldt alleen voor songs die al in de betreffende setlist voorkomen.
 
 ### 4. Reorder songs in a setlist
 As a band member, I want to change the order of songs in a setlist, so I can optimise the flow of a performance.
