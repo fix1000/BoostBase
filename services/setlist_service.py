@@ -20,15 +20,16 @@ class SetlistService:
         return self.repository.load_setlists()
 
     def add_song_to_setlist(self, setlist_id, song_id):
-        setlists =self.repository.load_setlists()
+        setlist =self.get_setlist_by_id(setlist_id)
 
-        for setlist in setlists:
-            if setlist.id == setlist_id:
-                setlist.song_ids.append(song_id)
-                self.repository.save_setlist(setlist)
-                return
-        
-        raise ValueError("Setlist ID not found")
+        songs = self.song_repository.load_songs()
+        song_exists = any(song.id == song_id for song in songs)
+
+        if not song_exists:
+            raise ValueError(f"Song ID not found: {song_id}")
+
+        setlist.song_ids.append(song_id)
+        self.repository.save_setlist(setlist)
 
     def remove_song_from_setlist(self, setlist_id, song_id, position=None):
         setlists = self.repository.load_setlists()

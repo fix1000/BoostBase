@@ -54,7 +54,12 @@ def test_get_setlists_returns_saved_setlists(tmp_path):
 
 def test_add_song_to_setlist(tmp_path):
     repository = SetlistRepository(tmp_path / "setlists.json")
-    service = SetlistService(repository, Mock())
+    song_repository = Mock()
+    song = Mock()
+    song.id = 42
+    song_repository.load_songs.return_value = [song]
+
+    service = SetlistService(repository, song_repository)
 
     setlist = service.create_setlist("Zomerfeest")
 
@@ -66,7 +71,13 @@ def test_add_song_to_setlist(tmp_path):
 
 def test_add_same_song_twice_to_setlist(tmp_path):
     repository = SetlistRepository(tmp_path / "setlists.json")
-    service = SetlistService(repository, Mock())
+
+    song_repository = Mock()
+    song = Mock()
+    song.id = 42
+    song_repository.load_songs.return_value = [song]
+
+    service = SetlistService(repository, song_repository)
 
     setlist = service.create_setlist("Zomerfeest")
 
@@ -79,7 +90,13 @@ def test_add_same_song_twice_to_setlist(tmp_path):
 
 def test_remove_song_from_setlist_removes_only_one_occurrence(tmp_path):
     repository = SetlistRepository(tmp_path / "setlists.json")
-    service = SetlistService(repository, Mock())
+    song_repository = Mock()
+    song_repository.load_songs.return_value = [
+        Mock(id=42),
+        Mock(id=17),
+    ]
+
+    service = SetlistService(repository, song_repository)
 
     setlist = service.create_setlist("Zomerfeest")
 
@@ -95,7 +112,13 @@ def test_remove_song_from_setlist_removes_only_one_occurrence(tmp_path):
 
 def test_remove_song_not_in_setlist_raises_error(tmp_path):
     repository = SetlistRepository(tmp_path / "setlists.json")
-    service = SetlistService(repository, Mock())
+    song_repository = Mock()
+    song_repository.load_songs.return_value = [
+        Mock(id=42),
+        Mock(id=99),
+    ]
+
+    service = SetlistService(repository, song_repository)
 
     setlist = service.create_setlist("Zomerfeest")
     service.add_song_to_setlist(setlist.id, 42)
@@ -105,7 +128,13 @@ def test_remove_song_not_in_setlist_raises_error(tmp_path):
 
 def test_remove_song_from_setlist_is_saved_persistently(tmp_path):
     repository = SetlistRepository(tmp_path / "setlists.json")
-    service = SetlistService(repository, Mock())
+    song_repository = Mock()
+    song_repository.load_songs.return_value = [
+        Mock(id=42),
+        Mock(id=17),
+    ]
+
+    service = SetlistService(repository, song_repository)
 
     setlist = service.create_setlist("Zomerfeest")
     service.add_song_to_setlist(setlist.id, 42)
@@ -119,7 +148,13 @@ def test_remove_song_from_setlist_is_saved_persistently(tmp_path):
 
 def test_remove_specific_song_occurrence_from_setlist(tmp_path):
     repository = SetlistRepository(tmp_path / "setlists.json")
-    service = SetlistService(repository, Mock())
+    song_repository = Mock()
+    song_repository.load_songs.return_value = [
+        Mock(id=42),
+        Mock(id=17),
+    ]
+
+    service = SetlistService(repository, song_repository)
 
     setlist = service.create_setlist("Zomerfeest")
 
@@ -139,7 +174,13 @@ def test_remove_specific_song_occurrence_from_setlist(tmp_path):
 
 def test_remove_song_from_setlist_rejects_wrong_song_at_position(tmp_path):
     repository = SetlistRepository(tmp_path / "setlists.json")
-    service = SetlistService(repository, Mock())
+    song_repository = Mock()
+    song_repository.load_songs.return_value = [
+        Mock(id=42),
+        Mock(id=17),
+    ]
+
+    service = SetlistService(repository, song_repository)
 
     setlist = service.create_setlist("Zomerfeest")
     service.add_song_to_setlist(setlist.id, 42)
@@ -160,7 +201,13 @@ def test_remove_song_from_setlist_rejects_out_of_range_position(
     tmp_path, position
 ):
     repository = SetlistRepository(tmp_path / "setlists.json")
-    service = SetlistService(repository, Mock())
+    song_repository = Mock()
+    song_repository.load_songs.return_value = [
+        Mock(id=42),
+        Mock(id=17),
+    ]
+
+    service = SetlistService(repository, song_repository)
 
     setlist = service.create_setlist("Zomerfeest")
     service.add_song_to_setlist(setlist.id, 42)
@@ -413,4 +460,17 @@ def test_find_setlists_containing_song_returns_empty_list_when_not_found():
 
     assert result == []
 
+def test_add_nonexistent_song_to_setlist_raises_error(tmp_path):
+    setlist_repository = SetlistRepository(tmp_path / "setlists.json")
 
+    song_repository = Mock()
+    song_repository.load_songs.return_value = []
+
+    service = SetlistService(setlist_repository, song_repository)
+    setlist = service.create_setlist("Zomerfeest")
+
+    with pytest.raises(ValueError, match="Song ID not found"):
+        service.add_song_to_setlist(setlist.id, 42)
+
+    saved_setlist = service.get_setlist_by_id(setlist.id)
+    assert saved_setlist.song_ids == []
