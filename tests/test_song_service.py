@@ -1,6 +1,8 @@
 import pytest
 from services.song_service import SongService
 from services.song_repository import SongRepository
+from services.setlist_repository import SetlistRepository
+from services.setlist_service import SetlistService
 from models.song import Song
 
 @pytest.fixture
@@ -1039,3 +1041,244 @@ def test_search_songs_with_valid_and_unknown_criteria_raises_error(song_service)
             artist="Queen",
             banana="test"
         )
+
+
+
+def test_cancel_deleting_song_keeps_song_and_setlist_unchanged(
+    tmp_path,
+):
+    song_repository = SongRepository(tmp_path / "songs.json")
+    song_service = SongService(song_repository)
+
+    song = song_service.add_song(
+        title="Beat It",
+        artist="Michael Jackson",
+        duration_seconds=258,
+        medley=False,
+        release_year=1982,
+    )
+
+    setlist_repository = SetlistRepository(tmp_path / "setlists.json")
+    setlist_service = SetlistService(setlist_repository, song_repository)
+
+    setlist = setlist_service.create_setlist("Feest")
+    setlist_service.add_song_to_setlist(setlist.id, song.id)
+
+    # The user cancels the deletion.
+    # The song and its setlist reference must remain unchanged.
+    assert song_service.get_all_songs() == [song]
+    assert setlist_service.get_setlist_by_id(setlist.id).song_ids == [song.id]
+
+
+
+def test_delete_song_in_setlist_requires_confirmation(
+    tmp_path,
+):
+    song_repository = SongRepository(tmp_path / "songs.json")
+    setlist_repository = SetlistRepository(tmp_path / "setlists.json")
+    setlist_service = SetlistService(setlist_repository, song_repository)
+    song_service = SongService(song_repository, setlist_service)
+
+    song = song_service.add_song(
+        title="Beat It",
+        artist="Michael Jackson",
+        duration_seconds=258,
+        medley=False,
+        release_year=1982,
+    )
+
+    setlist = setlist_service.create_setlist("Feest")
+    setlist_service.add_song_to_setlist(setlist.id, song.id)
+
+    with pytest.raises(ValueError, match="setlist"):
+        song_service.delete_song(song.id)
+
+    assert song_service.get_all_songs() == [song]
+    assert setlist_service.get_setlist_by_id(setlist.id).song_ids == [song.id]
+
+
+def test_confirmed_song_deletion_removes_all_setlist_references(tmp_path):
+    song_repository = SongRepository(tmp_path / "songs.json")
+    setlist_repository = SetlistRepository(tmp_path / "setlists.json")
+
+    setlist_service = SetlistService(setlist_repository, song_repository)
+    song_service = SongService(song_repository, setlist_service)
+
+    song = song_service.add_song(
+        title="Beat It",
+        artist="Michael Jackson",
+        duration_seconds=258,
+        medley=False,
+        release_year=1982,
+    )
+
+    other_song = song_service.add_song(
+        title="Billie Jean",
+        artist="Michael Jackson",
+        duration_seconds=294,
+        medley=False,
+        release_year=1982,
+    )
+
+    feest = setlist_service.create_setlist("Feest")
+    rock = setlist_service.create_setlist("Rock")
+
+    setlist_service.add_song_to_setlist(feest.id, song.id)
+    setlist_service.add_song_to_setlist(feest.id, other_song.id)
+    setlist_service.add_song_to_setlist(feest.id, song.id)
+    setlist_service.add_song_to_setlist(rock.id, song.id)
+
+    song_service.delete_song(song.id, confirmed=True)
+
+    assert [s.id for s in song_repository.load_songs()] == [other_song.id]
+    assert setlist_service.get_setlist_by_id(feest.id).song_ids == [
+        other_song.id
+    ]
+    assert setlist_service.get_setlist_by_id(rock.id).song_ids == []
+
+
+
+def test_failed_setlist_save_keeps_song_in_repository(tmp_path, monkeypatch):
+    song_repository = SongRepository(tmp_path / "songs.json")
+    setlist_repository = SetlistRepository(tmp_path / "setlists.json")
+
+    setlist_service = SetlistService(setlist_repository, song_repository)
+    song_service = SongService(song_repository, setlist_service)
+
+    song = song_service.add_song(
+        title="Beat It",
+        artist="Michael Jackson",
+        duration_seconds=258,
+        medley=False,
+        release_year=1982,
+    )
+
+    setlist = setlist_service.create_setlist("Feest")
+    setlist_service.add_song_to_setlist(setlist.id, song.id)
+
+    def fail_save_setlist(setlist):
+        raise OSError("Simulated setlist save failure")
+
+    monkeypatch.setattr(
+        setlist_repository,
+        "save_setlist",
+        fail_save_setlist,
+    )
+
+    with pytest.raises(OSError, match="Simulated setlist save failure"):
+        song_service.delete_song(song.id, confirmed=True)
+
+    saved_songs = song_repository.load_songs()
+    assert [saved_song.id for saved_song in saved_songs] == [song.id]
+
+
+def test_failed_second_setlist_save_keeps_song_in_repository(
+    tmp_path,
+    monkeypatch,
+):
+    song_repository = SongRepository(tmp_path / "songs.json")
+    setlist_repository = SetlistRepository(tmp_path / "setlists.json")
+
+    setlist_service = SetlistService(setlist_repository, song_repository)
+    song_service = SongService(song_repository, setlist_service)
+
+    song = song_service.add_song(
+        title="Beat It",
+        artist="Michael Jackson",
+        duration_seconds=258,
+        medley=False,
+        release_year=1982,
+    )
+
+    first_setlist = setlist_service.create_setlist("Feest")
+    second_setlist = setlist_service.create_setlist("Rock")
+
+    setlist_service.add_song_to_setlist(first_setlist.id, song.id)
+    setlist_service.add_song_to_setlist(second_setlist.id, song.id)
+
+    original_save = setlist_repository.save_setlist
+    save_count = 0
+
+    def fail_on_second_save(setlist):
+        nonlocal save_count
+        save_count += 1
+
+        if save_count == 2:
+            raise OSError("Simulated second save failure")
+
+        original_save(setlist)
+
+    monkeypatch.setattr(
+        setlist_repository,
+        "save_setlist",
+        fail_on_second_save,
+    )
+
+    with pytest.raises(OSError, match="Simulated second save failure"):
+        song_service.delete_song(song.id, confirmed=True)
+
+    saved_songs = song_repository.load_songs()
+    assert [saved_song.id for saved_song in saved_songs] == [song.id]
+    saved_setlists = setlist_repository.load_setlists()
+    assert saved_setlists[0].song_ids == [song.id]
+    assert saved_setlists[1].song_ids == [song.id]
+
+
+def test_failed_song_deletion_restores_setlist_references(
+    tmp_path,
+    monkeypatch,
+):
+    song_repository = SongRepository(tmp_path / "songs.json")
+    setlist_repository = SetlistRepository(tmp_path / "setlists.json")
+
+    setlist_service = SetlistService(setlist_repository, song_repository)
+    song_service = SongService(song_repository, setlist_service)
+
+    song = song_service.add_song(
+        title="Beat It",
+        artist="Michael Jackson",
+        duration_seconds=258,
+        medley=False,
+        release_year=1982,
+    )
+
+    setlist = setlist_service.create_setlist("Feest")
+    setlist_service.add_song_to_setlist(setlist.id, song.id)
+
+    def fail_delete_song(song):
+        raise OSError("Simulated song deletion failure")
+
+    monkeypatch.setattr(
+        song_repository,
+        "delete_song",
+        fail_delete_song,
+    )
+
+    with pytest.raises(OSError, match="Simulated song deletion failure"):
+        song_service.delete_song(song.id, confirmed=True)
+
+    saved_songs = song_repository.load_songs()
+    saved_setlist = setlist_repository.load_setlists()[0]
+
+    assert [saved_song.id for saved_song in saved_songs] == [song.id]
+    assert saved_setlist.song_ids == [song.id]
+
+def test_delete_song_warning_identifies_affected_setlist(tmp_path):
+    song_repository = SongRepository(tmp_path / "songs.json")
+    setlist_repository = SetlistRepository(tmp_path / "setlists.json")
+    setlist_service = SetlistService(setlist_repository, song_repository)
+    song_service = SongService(song_repository, setlist_service)
+
+    song = song_service.add_song(
+        title="Beat It",
+        artist="Michael Jackson",
+        duration_seconds=258,
+        medley=False,
+        release_year=1982,
+    )
+
+    setlist = setlist_service.create_setlist("Zomerfeest")
+    setlist_service.add_song_to_setlist(setlist.id, song.id)
+
+    with pytest.raises(ValueError, match="Zomerfeest"):
+        song_service.delete_song(song.id)

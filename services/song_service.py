@@ -4,8 +4,9 @@ import inspect
 
 class SongService:
 
-    def __init__(self, repository): 
+    def __init__(self, repository, setlist_service=None): 
         self.repository=repository
+        self.setlist_service = setlist_service
         self._songs = self.repository.load_songs()
         if self._songs:
             self._next_id=max(song.id for song in self._songs) +1
@@ -40,14 +41,61 @@ class SongService:
 
     def get_all_songs(self):
         return self._songs
-        
-    def delete_song(self, id):
-        for s in self._songs:
-            if id == s.id:
-                self._songs.remove(s) #opslaan in werkgeheugen
-                self.repository.delete_song(s) #opslaan ook naar Json (repo)
-                return
-        raise ValueError(f"Song with ID {id} not found")
+
+    def delete_song(self, id, confirmed=False):
+        song = next((s for s in self._songs if s.id == id), None)
+
+        if song is None:
+            raise ValueError(f"Song with ID {id} not found")
+
+        affected_setlists = []
+        if self.setlist_service is not None:
+            affected_setlists = (
+                self.setlist_service.find_setlists_containing_song(id)
+            )
+
+        if affected_setlists and not confirmed:
+            setlist_names = ", ".join(
+                setlist.name for setlist in affected_setlists
+            )
+            raise ValueError(
+                f"Song is still used in these setlists: {setlist_names}. "
+                "Confirmation is required."
+            )
+
+        original_song_ids = {
+            setlist.id: list(setlist.song_ids)
+            for setlist in affected_setlists
+        }
+
+        try:
+            for setlist in affected_setlists:
+                setlist.song_ids = [
+                    song_id
+                    for song_id in setlist.song_ids
+                    if song_id != id
+                ]
+                self.setlist_service.repository.save_setlist(setlist)
+
+            self.repository.delete_song(song)
+
+        except Exception as original_error:
+            for setlist in affected_setlists:
+                setlist.song_ids = original_song_ids[setlist.id]
+
+            try:
+                for setlist in affected_setlists:
+                    self.setlist_service.repository.save_setlist(setlist)
+            except Exception as rollback_error:
+                original_error.add_note(
+                    "Setlist rollback also failed: "
+                    f"{rollback_error}"
+                )
+
+            raise
+
+        self._songs.remove(song)
+
 
     def update_song(
         self,
