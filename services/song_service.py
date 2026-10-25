@@ -55,8 +55,11 @@ class SongService:
             )
 
         if affected_setlists and not confirmed:
+            setlist_names = ", ".join(
+                setlist.name for setlist in affected_setlists
+            )
             raise ValueError(
-                "Song is still used in one or more setlists. "
+                f"Song is still used in these setlists: {setlist_names}. "
                 "Confirmation is required."
             )
 

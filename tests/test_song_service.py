@@ -1262,3 +1262,23 @@ def test_failed_song_deletion_restores_setlist_references(
 
     assert [saved_song.id for saved_song in saved_songs] == [song.id]
     assert saved_setlist.song_ids == [song.id]
+
+def test_delete_song_warning_identifies_affected_setlist(tmp_path):
+    song_repository = SongRepository(tmp_path / "songs.json")
+    setlist_repository = SetlistRepository(tmp_path / "setlists.json")
+    setlist_service = SetlistService(setlist_repository, song_repository)
+    song_service = SongService(song_repository, setlist_service)
+
+    song = song_service.add_song(
+        title="Beat It",
+        artist="Michael Jackson",
+        duration_seconds=258,
+        medley=False,
+        release_year=1982,
+    )
+
+    setlist = setlist_service.create_setlist("Zomerfeest")
+    setlist_service.add_song_to_setlist(setlist.id, song.id)
+
+    with pytest.raises(ValueError, match="Zomerfeest"):
+        song_service.delete_song(song.id)
