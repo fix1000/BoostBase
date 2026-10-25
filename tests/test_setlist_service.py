@@ -474,3 +474,58 @@ def test_add_nonexistent_song_to_setlist_raises_error(tmp_path):
 
     saved_setlist = service.get_setlist_by_id(setlist.id)
     assert saved_setlist.song_ids == []
+
+def test_reorder_song_in_setlist_saves_new_order(tmp_path):
+    repository = SetlistRepository(tmp_path / "setlists.json")
+    service = SetlistService(repository, Mock())
+
+    setlist = service.create_setlist("Zomerfeest")
+    setlist.song_ids = [42, 17, 99]
+    repository.save_setlist(setlist)
+
+    service.reorder_song_in_setlist(
+        setlist.id,
+        from_position=1,
+        to_position=3,
+    )
+
+    updated_setlist = service.get_setlist_by_id(setlist.id)
+
+    assert updated_setlist.song_ids == [17, 99, 42]
+
+@pytest.mark.parametrize("to_position", [0, 4])
+def test_reorder_song_rejects_invalid_destination_position(
+    tmp_path, to_position
+):
+    repository = SetlistRepository(tmp_path / "setlists.json")
+    service = SetlistService(repository, Mock())
+
+    setlist = service.create_setlist("Zomerfeest")
+    setlist.song_ids = [42, 17, 99]
+    repository.save_setlist(setlist)
+
+    with pytest.raises(ValueError, match="Invalid destination position"):
+        service.reorder_song_in_setlist(
+            setlist.id,
+            from_position=1,
+            to_position=to_position,
+        )
+
+
+@pytest.mark.parametrize("from_position", [0, 4])
+def test_reorder_song_rejects_invalid_source_position(
+    tmp_path, from_position
+):
+    repository = SetlistRepository(tmp_path / "setlists.json")
+    service = SetlistService(repository, Mock())
+
+    setlist = service.create_setlist("Zomerfeest")
+    setlist.song_ids = [42, 17, 99]
+    repository.save_setlist(setlist)
+
+    with pytest.raises(ValueError, match="Invalid source position"):
+        service.reorder_song_in_setlist(
+            setlist.id,
+            from_position=from_position,
+            to_position=2,
+        )
