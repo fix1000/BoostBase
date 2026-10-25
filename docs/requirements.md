@@ -42,18 +42,83 @@ BoostBase helps bands managing their repertoire (songs)
     As a band member, I want to search for songs by the key in which we perform them, so I can find songs that fit the key required for a performance.
 ---
 
-## Version 0.3
+## Version 0.3 — Setlist Management
 
-- Make a setlist
-    As a band member, I want to make myself a setlist, based on the numbers in a complete list, so we basically can make pre-defined lists, and put songs into it.
-- Adding songs to a playlist
-    As a band member, I want to add songs to a playlist, using the search options, so the Setlist wil be adjusted to the event. 
-- Updating songs in a playlist
-    As a band member, I want to change the order of songs in a setlist, so the setlist will be more efficient, given the event. 
-- Deleting songs in a playlist
-    As a band memeber, I want to be able to delete songs from the setlis, so the setlist can be optimised for upcoming events. 
-- Delete setlist
-    As a band member, I want to be able to erase the complete setlist, so mistakes can be erased. 
+### 1. Create a setlist
+As a band member, I want to create a named setlist, so I can prepare a repertoire for a specific event.
+
+**Acceptance criteria**
+- A setlist has a unique ID and a name.
+- A setlist can initially contain no songs.
+- A setlist is saved persistently.
+- Setlist names cannot be empty or consist only of whitespace.
+- Setlist IDs are assigned automatically by the application; users do not provide them.
+- Every newly created setlist receives a unique ID.
+- Setlist IDs are not reused after a setlist is deleted.
+- The next available ID is stored persistently and remains correct after restarting the application.
+
+### 2. View a setlist
+As a band member, I want to view a setlist and its songs, so I can review the repertoire planned for an event.
+
+**Acceptance criteria**
+- A setlist can be retrieved by its ID.
+- Songs are resolved using their existing song IDs.
+- Songs are displayed in the order stored in the setlist.
+- The same song may appear multiple times in one setlist.
+- Each occurrence of a song is treated as a separate entry with its own position.
+- A missing setlist ID produces a clear error.
+
+### 3. Add songs to a setlist
+As a band member, I want to add existing songs to a setlist, so I can prepare the repertoire for an event.
+
+**Acceptance criteria**
+- Only songs that exist in the repertoire can be added.
+- The setlist stores song IDs rather than duplicate song objects.
+- A song can be added multiple times to the same setlist.
+- Each addition creates a separate occurrence at the end of the setlist.
+- Adding a song preserves the existing order.
+- The change is saved persistently.
+
+### 4. Reorder songs in a setlist
+As a band member, I want to change the order of songs in a setlist, so I can optimise the flow of a performance.
+
+**Acceptance criteria**
+- A specific occurrence of a song can be moved to a different position.
+- When the same song appears more than once, the occurrence being moved can be identified unambiguously.
+- The requested position must be valid.
+- The new order is saved persistently.
+
+### 5. Remove a song from a setlist
+As a band member, I want to remove a song from a setlist without deleting it from the repertoire, so I can adapt a setlist without losing the song.
+
+**Acceptance criteria**
+- A specific occurrence can be removed from the selected setlist.
+- Removing one occurrence does not automatically remove other occurrences of the same song.
+- The song remains in the repertoire.
+- The updated setlist is saved persistently.
+
+### 6. Delete a setlist
+As a band member, I want to delete a complete setlist, so I can remove a setlist that is no longer needed.
+
+**Acceptance criteria**
+- The selected setlist is deleted persistently.
+- Its deletion does not delete any songs from the repertoire.
+- Attempting to delete a non-existent setlist produces a clear error.
+
+### 7. Warn before deleting a song used in setlists
+As a band member, I want to receive a warning before permanently deleting a song that is used in one or more setlists, so I can review the consequences before proceeding.
+
+**Acceptance criteria**
+- Before permanently deleting a song, the application checks whether the song occurs in any setlists.
+- If the song occurs in one or more setlists, the application displays a warning before deletion.
+- The warning identifies the song and lists the affected setlists.
+- The warning explains that continuing will remove all occurrences of the song from the affected setlists.
+- The user can cancel the deletion.
+- If the user cancels, the song and all setlists remain unchanged.
+- If the user confirms, the song is permanently deleted and all its occurrences are removed from the affected setlists.
+- If the song is not used in any setlist, the setlist-specific warning is not required.
+- If deletion or cleanup fails, the application must not leave the song repository and setlist repositories in an inconsistent state.
+- Archiving a song does not remove it from existing setlists.
 
 ---
 
